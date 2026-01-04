@@ -11,3 +11,8 @@ sudo bpftool struct_ops register minimal_sched.bpf.o /sys/fs/bpf/sched_ext
 
 stress tool: 
 stress -c 10 
+
+some err output: 
+sudo dmesg | tail -n 40
+
+
