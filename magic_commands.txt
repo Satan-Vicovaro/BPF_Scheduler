@@ -15,4 +15,9 @@ stress -c 10
 some err output: 
 sudo dmesg | tail -n 40
 
+seeing printk logs: 
+sudo bpftool prog tracelog
+or
+sudo cat /sys/kernel/debug/tracing/trace_pipe
+
 
