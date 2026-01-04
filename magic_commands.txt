@@ -9,6 +9,5 @@ sudo clang -target bpf -g -O2 -c minimal_sched.bpf.c  -o minimal_sched.bpf.o -I.
 run: 
 sudo bpftool struct_ops register minimal_sched.bpf.o /sys/fs/bpf/sched_ext
 
-
-stress tool e.g.:
-stress -c 2
+stress tool: 
+stress -c 10 
