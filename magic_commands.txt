@@ -1,3 +1,4 @@
+finding function actual type (still a little bit obfuscated)
 bpftool btf dump file /sys/kernel/btf/vmlinux | grep -A 5 "\[133367\]"
 
 removing scheduler: 
@@ -20,4 +21,6 @@ sudo bpftool prog tracelog
 or
 sudo cat /sys/kernel/debug/tracing/trace_pipe
 
-
+installing newest libbpf: 
+git clone https://github.com/libbpf/libbpf.git
+cd libbpf/src && make
