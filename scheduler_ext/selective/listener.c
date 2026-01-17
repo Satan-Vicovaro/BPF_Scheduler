@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 /* Copyright (c) 2020 Facebook */
 #include "selective.skel.h"
-// #include "vmlinux.h"
-// #include "vmlinux.h"
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 #include <stdbool.h>
