@@ -1,6 +1,8 @@
 ./scheduler_ext/minimal/minimal_sched.bpf.o
 ./scheduler_ext/selective/hello
 ./scheduler_ext/selective/listener
+./scheduler_ext/selective/vmlinux.h
 ./scheduler_ext/selective/selective.bpf.o
 ./libbpf-bootstrap/*
-file.txt
+*.bpf.o
+
