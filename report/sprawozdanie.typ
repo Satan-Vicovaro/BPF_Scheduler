@@ -70,6 +70,37 @@ jak korzystać z _sched_ext_, rozszerzenia udostępnionego przez jądro linuxa,
 które umożliwa dodawanie własnych planistów, jeżeli polityki udostępnione standardowo
 nie są wystarczająco optymalne. 
 
+Udało mi się zaimplementować na początku zaimplementować minimalnego planistę,
+jako test czy _sched_ext_ działa jak powinien. Implementuje on politykę typu _round robin_
+ze zmienną porcją przydzielanego czasu. Kolejka jest wspólna dla szyskich rdzeni procesora.
+Poczym postarałem się rozszerzyć planistę, dodatkowo zapisuje i wypisuje użytkownikowi informacje o procesach,
+którym przedziela czas.
+Zapisuje statystyki takie jak:
+- przydzielony czas;
+- pid;
+- krótka nazwa prcesu;
+- łączny czas czekania na czas procesora;
+- maksymalny czas czekania.
+
+Zobaczyłem jak zachowuje się planista, jeżeli przydzielimy bardzo kawałek czasu (sekundy, setne sekund)
+lub jak będzie on bardzo mały (nanosekudny).
+
+Dodatkowo chciałem zobaczyć czy da się zagłodzić niechciane zadania, celowo nie przydzielając im czasu procesora.
+
+
+
+= Problemy na jakie natrafiłem 
+
+== BCC czy libbpf?
+
+== Rozbieżność wersji
+
+== Output eBPF
+
+== Pomyłki w przykładach?
+
+
+
 
 = Lists and Points
 Typst makes lists very intuitive. You do not need complex commands, just symbols.
