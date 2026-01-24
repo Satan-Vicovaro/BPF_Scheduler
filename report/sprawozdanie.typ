@@ -88,18 +88,97 @@ lub jak będzie on bardzo mały (nanosekudny).
 Dodatkowo chciałem zobaczyć czy da się zagłodzić niechciane zadania, celowo nie przydzielając im czasu procesora.
 
 
-
 = Problemy na jakie natrafiłem 
 
 == BCC czy libbpf?
+BCC jest starszą biblioteką umożliwiającą pisanie progamów przy pomocy eBPF, jest on starszy ...
 
 == Rozbieżność wersji
+W przykładach nazwa funkcji do przełączenia zadań na procesorze nazywa się: 
+```
+  scx_bpf_consume(u64 dsq_id)
+```
+
+a w wersji jądra 6.14 nazwa została zmieniona na: 
+```
+  scx_bpf_dsq_move_to_local(u64 dsq_id)
+```
+by znaleźć to trzeba zajżeć do dokumentacji dokładnej wersji i
+zobaczyć jak zmieniła się nazwa funckji: 
+#link("https://github.com/torvalds/linux/blob/v6.14/kernel/sched/ext.c#L6749").
+Trzeba mieć na uwadzę, że jądro linuxa jest dynamicznie rozwijane i dokumentacja
+nie nadąża lub jest nieaktualna.
 
 == Output eBPF
 
+Oto typowy output błędu przy kompilacji za pomocą ebpf:
+
+```
+libbpf: prog 'sched_running': BPF program load failed: -EACCES
+libbpf: prog 'sched_running': -- BEGIN PROG LOAD LOG --
+0: R1=ctx() R10=fp0
+; int BPF_STRUCT_OPS(sched_running, struct task_struct *p) { @ selective.bpf.c:158
+0: (79) r7 = *(u64 *)(r1 +0)
+func 'running' arg0 has btf_id 86 type STRUCT 'task_struct'
+1: R1=ctx() R7_w=trusted_ptr_task_struct()
+; task_stats_ext *stats = bpf_task_storage_get(&task_storage, p, NULL, @ selective.bpf.c:160
+1: (18) r1 = 0xffff8e975abf8400       ; R1_w=map_ptr(map=task_storage,ks=4,vs=88)
+3: (bf) r2 = r7                       ; R2_w=trusted_ptr_task_struct() R7_w=trusted_ptr_task_struct()
+4: (b7) r3 = 0                        ; R3_w=0
+5: (b7) r4 = 1                        ; R4_w=1
+6: (85) call bpf_task_storage_get#156         ; R0_w=map_value_or_null(id=1,map=task_storage,ks=4,vs=88)
+7: (bf) r6 = r0                       ; R0_w=map_value_or_null(id=1,map=task_storage,ks=4,vs=88) R6_w=map_value_or_null(id=1,map=task_storag
+e,ks=4,vs=88)
+; if (!stats) { @ selective.bpf.c:163
+8: (15) if r6 == 0x0 goto pc+18       ; R6_w=map_value(map=task_storage,ks=4,vs=88)
+9: (b7) r1 = 23                       ; R1_w=23
+; p->on_cpu = 23; @ selective.bpf.c:166
+10: (63) *(u32 *)(r7 +52) = r1
+processed 10 insns (limit 1000000) max_states_per_insn 0 total_states 0 peak_states 0 mark_read 0
+-- END PROG LOAD LOG --
+libbpf: prog 'sched_running': failed to load: -EACCES
+libbpf: failed to load object 'selective_bpf'
+libbpf: failed to load BPF skeleton 'selective_bpf': -EACCES
+Failed to load and verify BPF skeleton
+```
+
+Cieko jest za pierwszym razem zrozumiec jaki jest błąd. Jest to błąd który wystąpi
+po poprawnej kompilacji programu, więc nie jest to błąd składniowy. Błąd wynika
+z niezrozumienia jakiejś własności programów eBPF.
+
+=== Jak sobie z tym poradzić?
+Sprawdzenie dokumentacji eBPF: [link]. 
+
 == Pomyłki w przykładach?
+W przykładach pokazane jest zrobienie wspólnej kolejki na procesy (_schared_dispatch_queue_)
+z podaną linijką:
+```
+    u64 slice = 5000000u / scx_bpf_dsq_nr_queued(SHARED_DSQ_ID);
+    scx_bpf_dispatch(p, SHARED_DSQ_ID, slice, enq_flags);
+```
+_scx_bpf_dsq_nr_queued_, zwraca liczbę procesów aktualnie znajdujących się w kolejce do procesorów.
+Problemem jest to, że kolejka może być pusta, co powodowałoby dzielenie przez 0.
+Dzielenie przez 0 w programach eBPF nie powoduje wyrzucenie błędu, lecz poprostu wynikiem jest 0.
+Powoduje to, że procja czasu dostarczona do procesu wynosi 0. Nie oznacza to, że proces
+nie dostanie czasu procesora, a poprostu zostanie wywłaszczony przy najbliższej mozliwej okacji.
+Ten błąd jednak nie powoduje rzadnych problemów, w trakcie trwania planisty, ale jest to raczej
+nie zamierzane. Danie bardzo małego kawałku czasu jest nie efektywne, ale nie powoduje
+utraty responsywności komputera, dopóki liczba proecesów wymagająca stale czasu procesora
+nie jest dużo większa od liczby rdzeni precesora.
+
+Znalazłem to przez przypadek realizując mój projekt. Wypisując dane, które przypisuje scheduler
+zauważyłem że slice wynosi 0. Aktualnie nie wiem czy to jest błąd czy slice 0 ma specjalne własności.
+Ale trzeba wiedzieć że dokumentacja, czy przykłady mogą mieć błędy, lub być nie optymalne.
 
 
+== Skąd wziąć nazwy funkcji?
+Jest dokumentacja dotycząca funkcji eBPF od tym linkiem:
+#link("https://docs.ebpf.io/linux/program-type/BPF_PROG_TYPE_STRUCT_OPS/sched_ext_ops/").
+Nie jest zbiór funkcji jądra, jednak nie mam tutaj najważniejszych funkcji,
+które faktycznie umożliwają komunkację z jądrem w celu przydzielenia czasu procesora.
+By się tego dowiedzieć trzeba zobaczyć faktyczną implementację: 
+#link("https://github.com/torvalds/linux/blob/v6.14/kernel/sched/ext.c"). 
+Funkcje są tam dobrze opisane i faktycznie tłumaczą jakie mają zastosowanie
 
 
 = Lists and Points
