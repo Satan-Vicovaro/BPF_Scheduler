@@ -29,16 +29,12 @@ int time_to_unpark = 0;
   SEC("struct_ops.s/" #name)                                                   \
   BPF_PROG(name, ##args)
 
-typedef struct global_sched_data {
-  int call_function_counter;
-  unsigned int last_used_index;
-} global_sched_data;
-
 typedef struct task_stats_ext {
   int call_function_counter;
   int last_used_index;
 
   u64 slice;
+  u64 slice_sum;
   int pid;
   int recent_used_cpu;
   long unsigned int last_switch_count;
@@ -90,7 +86,7 @@ s32 BPF_STRUCT_OPS_SLEEPABLE(sched_init) {
 // dispatching it with a time slice
 int BPF_STRUCT_OPS(sched_enqueue, struct task_struct *p, u64 enq_flags) {
 
-  u64 slice = 0u / scx_bpf_dsq_nr_queued(SHARED_DSQ_ID);
+  u64 slice = 0u;
 
   if (p->pid == 6070 ||
       __builtin_memcmp(p->comm, forbidden_name, sizeof(forbidden_name)) == 0) {
@@ -108,19 +104,14 @@ int BPF_STRUCT_OPS(sched_enqueue, struct task_struct *p, u64 enq_flags) {
     }
     scx_bpf_dsq_insert(p, PARKING_DSQ_ID, slice, enq_flags);
 
-  } else if (__builtin_memcmp(p->comm, forbidden_name,
-                              sizeof(forbidden_name)) == 0) {
   } else {
     // Calculate the time slice for the task based on the number of tasks in
     // the queue
-    slice = 50000000u; // (scx_bpf_dsq_nr_queued(SHARED_DSQ_ID) + 2);
+    slice = 50000000u / (scx_bpf_dsq_nr_queued(SHARED_DSQ_ID) + 1);
     scx_bpf_dsq_insert(p, SHARED_DSQ_ID, slice, enq_flags);
   }
 
   // ------------- stats for listener ---------------
-
-  // global sched data
-  static global_sched_data g_sched_data = {0, 0};
 
   // reference to  task map
   task_stats_ext *stats = bpf_task_storage_get(&task_storage, p, NULL,
@@ -128,8 +119,8 @@ int BPF_STRUCT_OPS(sched_enqueue, struct task_struct *p, u64 enq_flags) {
 
   // stats
   if (stats) {
-    stats->call_function_counter = g_sched_data.call_function_counter;
     stats->slice = slice;
+    stats->slice_sum += slice;
     stats->pid = p->pid;
     stats->recent_used_cpu = p->recent_used_cpu;
     stats->last_switch_count = p->last_switch_count;
@@ -215,7 +206,7 @@ int dump_task_stats(struct bpf_iter__task *ctx) {
                    "------- Name: %-16s Pid: %-8d slice: %-10lld "
                    "max_wait(ms): %-10lld "
                    "total_wait(ms): %-10lld"
-                   "wait_count: %-10lld\n",
+                   "wait_count: %-10lld \n",
                    stats->comm, stats->pid, stats->slice,
                    (stats->max_wait_ns) / 1000000,
                    stats->total_wait_ns / 1000000, stats->wait_count);
@@ -225,10 +216,10 @@ int dump_task_stats(struct bpf_iter__task *ctx) {
   BPF_SEQ_PRINTF(seq,
                  "Name: %-16s Pid: %-6d slice: %-10lld max_wait(ms): %-5lld "
                  "total_wait(ms): %-5lld"
-                 "wait_count: %-4lld\n",
+                 "wait_count: %-4lld slice sum (ms): %-6lld \n",
                  stats->comm, stats->pid, stats->slice,
                  (stats->max_wait_ns) / 1000000, stats->total_wait_ns / 1000000,
-                 stats->wait_count);
+                 stats->wait_count, stats->slice_sum / 1000000);
   return 0;
 };
 
