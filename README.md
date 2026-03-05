@@ -1,5 +1,5 @@
 # BPF_Scheduler
-Simple scheduler made using eBPF with sched_ext. Made as a project for course System Software at Gdańsk University of Technology.
+Simple scheduler made using eBPF with sched_ext.
 
 This repository contains selective scheduler, which try to starve specified task. Scheduler is using most basic shared dispatch queue, with round robin as a policy. User space program show data about all processes which were scheduled.
 
